@@ -5,7 +5,9 @@
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
-
+# ssh key
+aws_kp
+aws_kp.pub
 # Crash log files
 crash.log
 crash.*.log

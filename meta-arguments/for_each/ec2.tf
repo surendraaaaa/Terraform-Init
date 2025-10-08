@@ -16,18 +16,18 @@ resource "aws_default_vpc" "my_vpc" {
 # security groups
 
 resource "aws_security_group" "my_security_group" {
-  count       = 2                                           # this is a count meta-argument
-  name        = "${var.security_group_name}-${count.index}" # use count.index to create unique names
+
+  name        = var.security_group_name
   description = "Allow TLS inbound traffic and all outbound traffic"
   vpc_id      = aws_default_vpc.my_vpc.id
 
   tags = {
-    Name = "${var.security_group_name}-${count.index}"
+    Name = var.security_group_name
   }
 }
 resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_https" {
-  count             = 2                                                    # this is a count meta-argument
-  security_group_id = aws_security_group.my_security_group[count.index].id #use count.index to refer to the correct security group
+
+  security_group_id = aws_security_group.my_security_group.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 443
   ip_protocol       = "tcp"
@@ -36,8 +36,8 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_https" {
 
 }
 resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_http" {
-  count             = 2 # this is a count meta-argument
-  security_group_id = aws_security_group.my_security_group[count.index].id
+
+  security_group_id = aws_security_group.my_security_group.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 80
   ip_protocol       = "tcp"
@@ -46,8 +46,8 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_http" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_ssh" {
-  count             = 2 # this is a count meta-argument
-  security_group_id = aws_security_group.my_security_group[count.index].id
+
+  security_group_id = aws_security_group.my_security_group.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 22
   ip_protocol       = "tcp"
@@ -56,8 +56,8 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4_ssh" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
-  count             = 2 # this is a count meta-argument
-  security_group_id = aws_security_group.my_security_group[count.index].id
+
+  security_group_id = aws_security_group.my_security_group.id
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
   description       = "All access"
@@ -68,19 +68,25 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
 
 resource "aws_instance" "my_instance" {
 
-  count           = 2                   # this is a count meta-argument
+  for_each = tomap({
+    terraform-instance-micro = "t3.micro",
+    terraform-instance-small = "t3.small"
+  }) # this is a for_each meta-argument
+
+  depends_on = [aws_security_group.my_security_group]
+
   ami             = var.instance_ami_id #ubuntu
-  instance_type   = var.instance_type
+  instance_type   = each.value
   key_name        = aws_key_pair.my_key.key_name
-  security_groups = [aws_security_group.my_security_group[count.index].name]
+  security_groups = [aws_security_group.my_security_group.name]
   user_data       = file("install_nginx.sh")
 
   root_block_device {
-    volume_size = var.env == "prod" ? 20 : var.instance_defualt_block_storage
+    volume_size = var.instance_block_storage
     volume_type = "gp3"
   }
   tags = {
-    Name = var.instance_name
+    Name = each.key
   }
 }
 
